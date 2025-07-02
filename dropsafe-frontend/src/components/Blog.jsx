@@ -1,10 +1,17 @@
 import React, { useState } from 'react';
 import { FiCalendar, FiClock, FiUser, FiSearch, FiBookmark, FiShare2, FiArrowRight } from 'react-icons/fi';
 import { FaLock, FaRegCommentAlt } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
+
 
 const Blog = () => {
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+ const navigate = useNavigate();
+
+const handleReadArticle = (id) => {
+  navigate(`/article/${id}`);
+};
 
   // Sample blog data - replace with your actual data
   const blogPosts = [
@@ -18,7 +25,6 @@ const Blog = () => {
       author: 'Alex Security',
       encrypted: true,
       thumbnail: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80',
-      comments: 12,
       bookmarked: false
     },
     {
@@ -31,7 +37,6 @@ const Blog = () => {
       author: 'Sarah Tech',
       encrypted: true,
       thumbnail: 'https://images.unsplash.com/photo-1518770660439-4636190af475?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80',
-      comments: 8,
       bookmarked: true
     },
     {
@@ -199,9 +204,10 @@ const Blog = () => {
                       </span>
                     </div>
                     <div className="d-flex align-items-center">
-                      <button className="btn btn-primary me-3">
-                        Read Article <FiArrowRight className="ms-1" />
-                      </button>
+                     <button className="btn btn-primary me-3" onClick={() => handleReadArticle(filteredPosts[0].id)}>
+  Read Article <FiArrowRight className="ms-1" />
+</button>
+
                       <button 
                         className="btn btn-outline-secondary me-2"
                         onClick={() => toggleBookmark(filteredPosts[0].id)}
@@ -271,9 +277,9 @@ const Blog = () => {
                 </div>
               </div>
               <div className="card-footer bg-white border-0 d-flex justify-content-between">
-                <button className="btn btn-sm btn-outline-primary">
-                  Read More
-                </button>
+                <button className="btn btn-primary me-3" onClick={() => handleReadArticle(filteredPosts[0].id)}>
+  Read Article <FiArrowRight className="ms-1" />
+</button>
                 <div className="d-flex">
                   <span className="d-flex align-items-center small text-muted me-2">
                     <FaRegCommentAlt className="me-1" size={12} />
