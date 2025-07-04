@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -16,7 +17,10 @@ const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
-
+app.use(cors({
+  origin: 'http://localhost:5173',  // Your frontend URL
+  credentials: true
+}));
 // Middleware
 app.use(express.json());
 
@@ -46,7 +50,7 @@ const upload = multer({
 });
 
 // Routes
-app.post('/api/files/upload', upload.single('file'), (req, res) => {
+app.post('/api/uploads', upload.single('file'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ 

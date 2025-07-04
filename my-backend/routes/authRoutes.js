@@ -25,10 +25,9 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB
 });
 
-router.post('/upload', 
-  authMiddleware,
-  upload.single('file'),
-  (req, res) => {
+router.post('/api/files/upload', upload.single('file'), (req, res) => {
+  res.header('Access-Control-Allow-Origin', 'http://localhost:5173');
+  res.header('Access-Control-Allow-Credentials', 'true');
     if (!req.file) {
       return res.status(400).json({ 
         success: false,
