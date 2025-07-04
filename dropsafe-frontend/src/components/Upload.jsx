@@ -1,224 +1,228 @@
-import React, { useState, useCallback } from 'react';
-import { FiUpload, FiLock, FiX, FiCheck, FiFile, FiShield } from 'react-icons/fi';
+import React, { useState, useContext } from 'react';
+import axios from 'axios';
+import { FiUpload, FiX } from 'react-icons/fi';
+import { UserContext } from '../context/UserContext';
+import { GoogleLogin } from '@react-oauth/google';
+import { jwtDecode } from 'jwt-decode';
 
 const Upload = () => {
-  const [files, setFiles] = useState([]);
-  const [isDragging, setIsDragging] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(null);
-  const [encryptionStatus, setEncryptionStatus] = useState('idle'); // 'idle', 'encrypting', 'encrypted'
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const { user, setUser } = useContext(UserContext);
 
-  const acceptedFileTypes = [
-    '.docx', '.jpg', '.jpeg', '.png', '.txt', 
-    '.pdf', '.xlsx', '.pptx', '.zip'
-  ];
+  const acceptedTypes = ['image/jpeg', 'image/png', 'image/webp'];
 
-  const handleDragEnter = (e) => {
-    e.preventDefault();
-    setIsDragging(true);
+  const handleLoginSuccess = (credentialResponse) => {
+    try {
+      const decoded = jwtDecode(credentialResponse.credential);
+      const userData = {
+        name: decoded.name,
+        email: decoded.email,
+        picture: decoded.picture,
+        token: credentialResponse.credential
+      };
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+      setSuccess('Logged in successfully!');
+      setError('');
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('Failed to process Google login');
+    }
   };
 
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem('user');
+    setFile(null);
+    setPreview('');
+    setSuccess('Logged out successfully');
   };
 
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const droppedFiles = Array.from(e.dataTransfer.files);
-    handleFiles(droppedFiles);
-  };
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (!selectedFile) return;
 
-  const handleFileInput = (e) => {
-    const selectedFiles = Array.from(e.target.files);
-    handleFiles(selectedFiles);
-  };
-
-  const handleFiles = (newFiles) => {
-    const validFiles = newFiles.filter(file => {
-      const extension = file.name.split('.').pop().toLowerCase();
-      return acceptedFileTypes.includes(`.${extension}`);
-    });
-
-    if (validFiles.length !== newFiles.length) {
-      alert(`Only these file types are allowed: ${acceptedFileTypes.join(', ')}`);
+    if (!acceptedTypes.includes(selectedFile.type)) {
+      setError('Only JPEG, PNG, or WebP images are allowed');
+      return;
     }
 
-    setFiles(prev => [...prev, ...validFiles]);
+    if (selectedFile.size > 5 * 1024 * 1024) {
+      setError('File size must be less than 5MB');
+      return;
+    }
+
+    setFile(selectedFile);
+    setPreview(URL.createObjectURL(selectedFile));
+    setError('');
   };
 
-  const removeFile = (index) => {
-    setFiles(prev => prev.filter((_, i) => i !== index));
-  };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!file) {
+      setError('Please select a file to upload');
+      return;
+    }
 
-  const simulateUpload = () => {
-    if (files.length === 0) return;
-    
-    setEncryptionStatus('encrypting');
-    
-    // Simulate encryption process
-    setTimeout(() => {
-      setEncryptionStatus('encrypted');
-      
-      // Simulate upload progress
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += Math.random() * 10;
-        if (progress >= 100) {
-          clearInterval(interval);
-          setUploadProgress(100);
-          setTimeout(() => {
-            setFiles([]);
-            setUploadProgress(null);
-            setEncryptionStatus('idle');
-          }, 1000);
-        } else {
-          setUploadProgress(progress);
+    if (!user) {
+      setError('Please login to upload files');
+      return;
+    }
+
+    setIsUploading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('userEmail', user.email);
+
+      const response = await axios.post(
+        'http://localhost:5000/api/uploads', 
+        formData, 
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            'Authorization': `Bearer ${user.token}`
+          },
+          timeout: 15000
         }
-      }, 300);
-    }, 1500);
+      );
+
+      setSuccess('File uploaded successfully!');
+      console.log('Upload response:', response.data);
+      
+    } catch (err) {
+      let errorMessage = 'Upload failed';
+      
+      if (err.response) {
+        errorMessage = err.response.data?.message || 
+                      err.response.data?.error || 
+                      errorMessage;
+      } else if (err.code === 'ECONNABORTED') {
+        errorMessage = 'Request timed out. Please try again.';
+      } else if (err.message.includes('Network Error')) {
+        errorMessage = 'Network error. Please check your connection.';
+      } else {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
-  const getFileIcon = (fileName) => {
-    const extension = fileName.split('.').pop().toLowerCase();
-    const iconMap = {
-      docx: '📄',
-      jpg: '🖼️',
-      jpeg: '🖼️',
-      png: '🖼️',
-      txt: '📝',
-      pdf: '📑',
-      xlsx: '📊',
-      pptx: '📽️',
-      zip: '🗄️'
-    };
-    return iconMap[extension] || '📁';
+  const removeFile = () => {
+    setFile(null);
+    setPreview('');
+    if (preview) URL.revokeObjectURL(preview);
   };
 
   return (
-    <div className="container py-5">
-      <div className="row justify-content-center">
-        <div className="col-lg-8">
-          {/* Upload Card */}
-          <div 
-            className={`card border-0 shadow-lg ${isDragging ? 'border-primary' : ''}`}
-            onDragEnter={handleDragEnter}
-            onDragOver={(e) => e.preventDefault()}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-          >
-            <div className="card-body p-4">
-              <div className="text-center mb-4">
-                <FiShield className="text-primary mb-3" size={48} />
-                <h3 className="fw-bold">Secure File Upload</h3>
-                <p className="text-muted">
-                  Your files are encrypted before upload for maximum security
-                </p>
+    <div className="container mt-4">
+      <div className="card shadow">
+        <div className="card-body">
+          <h2 className="card-title mb-4">
+            <FiUpload className="me-2" />
+            Secure File Upload
+          </h2>
+          
+          {/* Authentication Section */}
+          <div className="mb-4">
+            {!user ? (
+              <div className="text-center">
+                <p className="mb-3">Please login to upload files</p>
+                <GoogleLogin
+                  onSuccess={handleLoginSuccess}
+                  onError={() => setError('Google login failed')}
+                  useOneTap
+                />
               </div>
-
-              {/* Drop Zone */}
-              <div 
-                className={`drop-zone p-5 text-center rounded-3 ${isDragging ? 'bg-primary bg-opacity-10' : 'bg-light'}`}
-              >
-                <FiUpload className="mb-3" size={32} />
-                <h5 className="mb-2">Drag & Drop files here</h5>
-                <p className="text-muted mb-3">or</p>
-                <label className="btn btn-primary px-4">
-                  Browse Files
-                  <input 
-                    type="file" 
-                    className="d-none" 
-                    multiple 
-                    onChange={handleFileInput}
-                    accept={acceptedFileTypes.join(',')}
-                  />
-                </label>
-                <p className="small text-muted mt-3">
-                  Supported formats: {acceptedFileTypes.join(', ')}
-                </p>
+            ) : (
+              <div className="d-flex align-items-center mb-3">
+                <img 
+                  src={user.picture} 
+                  alt="User" 
+                  className="rounded-circle me-2" 
+                  width="40" 
+                  height="40"
+                />
+                <span>{user.name}</span>
+                <button 
+                  onClick={handleLogout}
+                  className="btn btn-sm btn-outline-danger ms-auto"
+                >
+                  Logout
+                </button>
               </div>
-
-              {/* File Preview */}
-              {files.length > 0 && (
-                <div className="mt-4">
-                  <h6 className="fw-bold mb-3">Selected Files</h6>
-                  <div className="file-list">
-                    {files.map((file, index) => (
-                      <div key={index} className="file-item d-flex align-items-center p-3 mb-2 bg-light rounded">
-                        <span className="file-icon me-3 fs-4">
-                          {getFileIcon(file.name)}
-                        </span>
-                        <div className="flex-grow-1">
-                          <div className="d-flex justify-content-between">
-                            <span className="file-name text-truncate" style={{ maxWidth: '200px' }}>
-                              {file.name}
-                            </span>
-                            <span className="file-size text-muted">
-                              {(file.size / 1024 / 1024).toFixed(2)} MB
-                            </span>
-                          </div>
-                          <div className="progress mt-2" style={{ height: '4px' }}>
-                            <div 
-                              className="progress-bar bg-success" 
-                              role="progressbar" 
-                              style={{ width: `${uploadProgress || 0}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                        <button 
-                          className="btn btn-sm btn-outline-danger ms-3"
-                          onClick={() => removeFile(index)}
-                        >
-                          <FiX />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Encryption Status */}
-              {encryptionStatus !== 'idle' && (
-                <div className={`alert ${encryptionStatus === 'encrypting' ? 'alert-warning' : 'alert-success'} mt-3 d-flex align-items-center`}>
-                  {encryptionStatus === 'encrypting' ? (
-                    <>
-                      <div className="spinner-border spinner-border-sm me-2" role="status"></div>
-                      <span>Encrypting your files...</span>
-                    </>
-                  ) : (
-                    <>
-                      <FiCheck className="me-2" />
-                      <span>Files encrypted and ready for secure upload</span>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* Upload Button */}
-              {files.length > 0 && (
-                <div className="d-grid mt-4">
-                  <button 
-                    className="btn btn-primary btn-lg"
-                    onClick={simulateUpload}
-                    disabled={encryptionStatus === 'encrypting'}
-                  >
-                    <FiLock className="me-2" />
-                    {uploadProgress ? `Uploading (${Math.round(uploadProgress)}%)` : 'Upload Securely'}
-                  </button>
-                </div>
-              )}
-            </div>
+            )}
           </div>
 
-          {/* Security Assurance */}
-          <div className="mt-4 text-center">
-            <div className="d-flex justify-content-center align-items-center">
-              <FiShield className="text-success me-2" />
-              <small className="text-muted">
-                All files are encrypted with AES-256 before leaving your device
-              </small>
+          {error && (
+            <div className="alert alert-danger">
+              {error}
             </div>
-          </div>
+          )}
+          
+          {success && (
+            <div className="alert alert-success">
+              {success}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit}>
+            <div className="mb-3">
+              <label htmlFor="fileInput" className="form-label">
+                Select File (JPEG, PNG, WebP - Max 5MB)
+              </label>
+              <input
+                type="file"
+                id="fileInput"
+                className="form-control"
+                onChange={handleFileChange}
+                accept={acceptedTypes.join(',')}
+              />
+            </div>
+
+            {preview && (
+              <div className="mb-3 position-relative">
+                <img
+                  src={preview}
+                  alt="Preview"
+                  className="img-thumbnail d-block"
+                  style={{ maxHeight: '200px' }}
+                />
+                <button
+                  type="button"
+                  className="btn btn-sm btn-danger position-absolute top-0 end-0 m-2"
+                  onClick={removeFile}
+                >
+                  <FiX />
+                </button>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={isUploading || !file || !user}
+            >
+              {isUploading ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2"></span>
+                  Uploading...
+                </>
+              ) : (
+                'Upload File'
+              )}
+            </button>
+          </form>
         </div>
       </div>
     </div>

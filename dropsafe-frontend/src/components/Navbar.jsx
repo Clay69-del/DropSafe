@@ -5,22 +5,48 @@ import { jwtDecode } from 'jwt-decode';
 import { UserContext } from '../context/UserContext';
 
 const Navbar = () => {
-  const { user, setUser } = useContext(UserContext);
+const { user, setUser } = useContext(UserContext);
 
-  const handleLoginSuccess = (credentialResponse) => {
-    const decoded = jwtDecode(credentialResponse.credential);
-    setUser({
-      name: decoded.name,
-      email: decoded.email,
-      picture: decoded.picture
+const handleLoginSuccess = async (credentialResponse) => {
+  const decoded = jwtDecode(credentialResponse.credential);
+
+  try {
+    // ✅ Send token to backend
+    const res = await fetch('http://localhost:5000/api/auth/google-login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token: credentialResponse.credential }),
     });
-     localStorage.setItem('userEmail', decoded.email);
-  };
 
-  const handleLogout = () => {
-    setUser(null);
-    localStorage.removeItem('user');
-  };
+    const data = await res.json();
+
+    if (res.ok) {
+      // ✅ Store JWT token for future requests (important!)
+      localStorage.setItem('token', data.token);
+
+      // ✅ Store user in context
+      setUser({
+        name: data.user.name,
+        email: data.user.email,
+        picture: data.user.picture,
+      });
+
+      // Optional: save user separately for quick load
+      localStorage.setItem('user', JSON.stringify(data.user));
+    } else {
+      console.error('Login failed:', data.message);
+    }
+  } catch (err) {
+    console.error('Error logging in:', err);
+  }
+};
+const handleLogout = () => {
+  setUser(null);
+  localStorage.removeItem('user');
+  localStorage.removeItem('token'); // remove JWT token too
+};
 
   return (
     <nav className="navbar navbar-expand-lg custom-navbar shadow-sm">

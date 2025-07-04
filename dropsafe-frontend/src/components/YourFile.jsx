@@ -1,79 +1,47 @@
-import React, { useState } from 'react';
+// YourFile.jsx
+import React, { useState, useEffect } from 'react';
 import { FiDownload, FiEye, FiTrash2, FiSearch, FiGrid, FiList, FiMoreVertical, FiShield, FiClock, FiFile } from 'react-icons/fi';
 import { saveAs } from 'file-saver';
 
 const YourFiles = () => {
-  // Sample data - replace with your actual files data
-  const [files, setFiles] = useState([
-    {
-      id: 1,
-      name: 'Project_Proposal.docx',
-      type: 'docx',
-      size: '2.4 MB',
-      uploaded: '2 days ago',
-      encrypted: true,
-      thumbnail: 'https://via.placeholder.com/80/4a90e2/ffffff?text=DOCX'
-    },
-    {
-      id: 2,
-      name: 'Financial_Report_Q3.pdf',
-      type: 'pdf',
-      size: '5.1 MB',
-      uploaded: '1 week ago',
-      encrypted: true,
-      thumbnail: 'https://via.placeholder.com/80/e74c3c/ffffff?text=PDF'
-    },
-    {
-      id: 3,
-      name: 'Team_Photo.jpg',
-      type: 'jpg',
-      size: '3.2 MB',
-      uploaded: '3 hours ago',
-      encrypted: true,
-      thumbnail: 'https://via.placeholder.com/80/2ecc71/ffffff?text=JPG'
-    },
-    {
-      id: 4,
-      name: 'Presentation.pptx',
-      type: 'pptx',
-      size: '8.7 MB',
-      uploaded: '1 day ago',
-      encrypted: true,
-      thumbnail: 'https://via.placeholder.com/80/e67e22/ffffff?text=PPTX'
-    },
-    {
-      id: 5,
-      name: 'Data_Backup.zip',
-      type: 'zip',
-      size: '45.2 MB',
-      uploaded: '3 weeks ago',
-      encrypted: true,
-      thumbnail: 'https://via.placeholder.com/80/9b59b6/ffffff?text=ZIP'
-    },
-    {
-      id: 6,
-      name: 'Notes.txt',
-      type: 'txt',
-      size: '0.1 MB',
-      uploaded: '5 minutes ago',
-      encrypted: true,
-      thumbnail: 'https://via.placeholder.com/80/95a5a6/ffffff?text=TXT'
-    }
-  ]);
-
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
+  const [files, setFiles] = useState([]);
+  const [viewMode, setViewMode] = useState('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+
+  useEffect(() => {
+    const fetchFiles = async () => {
+      try {
+        const res = await fetch('/api/files/files', {
+          credentials: 'include',
+        });
+        const data = await res.json();
+
+        const parsed = data.map((file, index) => ({
+          id: file.id,
+          name: file.name,
+          type: file.type,
+          size: `${file.size} MB`,
+          uploaded: new Date(file.uploaded).toLocaleString(),
+          encrypted: file.encrypted,
+          thumbnail: `https://via.placeholder.com/80/888888/ffffff?text=${file.type.toUpperCase()}`
+        }));
+
+        setFiles(parsed);
+      } catch (error) {
+        console.error('Error fetching files:', error);
+      }
+    };
+
+    fetchFiles();
+  }, []);
 
   const filteredFiles = files.filter(file =>
     file.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleDownload = (file) => {
-    // In a real app, you would fetch the file from your server
-    console.log(`Downloading ${file.name}`);
-    // Simulate download
     saveAs(file.thumbnail, file.name);
   };
 
@@ -88,20 +56,13 @@ const YourFiles = () => {
 
   const getFileIcon = (type) => {
     const icons = {
-      docx: '📄',
-      pdf: '📑',
-      jpg: '🖼️',
-      png: '🖼️',
-      pptx: '📽️',
-      zip: '🗄️',
-      txt: '📝'
+      docx: '📄', pdf: '📑', jpg: '🖼️', png: '🖼️', pptx: '📽️', zip: '🗄️', txt: '📝'
     };
     return icons[type] || '📁';
   };
 
   return (
     <div className="container-fluid py-4">
-      {/* Header */}
       <div className="row mb-4">
         <div className="col">
           <h2 className="fw-bold">Your Files</h2>
@@ -109,7 +70,6 @@ const YourFiles = () => {
         </div>
       </div>
 
-      {/* Toolbar */}
       <div className="row mb-4">
         <div className="col-md-6 mb-3 mb-md-0">
           <div className="input-group">
@@ -145,7 +105,6 @@ const YourFiles = () => {
         </div>
       </div>
 
-      {/* Files Display */}
       {filteredFiles.length === 0 ? (
         <div className="text-center py-5">
           <FiFile size={48} className="text-muted mb-3" />
@@ -274,7 +233,6 @@ const YourFiles = () => {
         </div>
       )}
 
-      {/* File Preview Modal */}
       {showPreviewModal && selectedFile && (
         <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <div className="modal-dialog modal-lg modal-dialog-centered">
@@ -349,7 +307,6 @@ const YourFiles = () => {
         </div>
       )}
 
-      {/* Empty space for large screens */}
       <div style={{ height: '100px' }}></div>
     </div>
   );
