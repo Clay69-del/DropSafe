@@ -12,9 +12,13 @@ const YourFiles = () => {
 
   useEffect(() => {
     const fetchFiles = async () => {
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (!user) return;
       try {
-        const res = await fetch('/api/files/files', {
-          credentials: 'include',
+        const res = await fetch('http://localhost:5000/api/files/files', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userEmail: user.email })
         });
         const data = await res.json();
 
@@ -22,8 +26,8 @@ const YourFiles = () => {
           id: file.id,
           name: file.name,
           type: file.type,
-          size: `${file.size} MB`,
-          uploaded: new Date(file.uploaded).toLocaleString(),
+          size: file.size, // Already formatted by backend
+          uploaded: file.uploaded,
           encrypted: file.encrypted,
           thumbnail: `https://via.placeholder.com/80/888888/ffffff?text=${file.type.toUpperCase()}`
         }));

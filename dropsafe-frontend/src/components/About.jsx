@@ -1,6 +1,7 @@
 import React from 'react';
 import { FiShield, FiLock, FiUsers, FiGlobe, FiAward, FiCode } from 'react-icons/fi';
 import { FaGoogle } from 'react-icons/fa';
+import { Link } from 'react-router-dom';
 
 const About = () => {
   const teamMembers = [
@@ -202,12 +203,12 @@ const About = () => {
             Join thousands of security-conscious users who trust their data with SecureCloud
           </p>
           <div className="d-flex justify-content-center gap-3">
-            <button className="btn btn-primary px-4">
+            <Link to="/upload" className="btn btn-primary px-4">
               Get Started
-            </button>
-            <button className="btn btn-outline-primary px-4">
-              Contact Sales
-            </button>
+            </Link>
+            <Link to="/contact" className="btn btn-outline-primary px-4">
+              Contact Us
+            </Link>
           </div>
         </div>
       </section>

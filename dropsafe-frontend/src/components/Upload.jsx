@@ -1,7 +1,7 @@
 import React, { useState, useContext } from 'react';
 import axios from 'axios';
 import { FiUpload, FiX } from 'react-icons/fi';
-import { UserContext } from '../context/UserContext';
+
 import { GoogleLogin } from '@react-oauth/google';
 import { jwtDecode } from 'jwt-decode';
 
@@ -11,26 +11,65 @@ const Upload = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const { user, setUser } = useContext(UserContext);
+  const [user, setUser] = useState(
+    localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : null
+  );
+  const [files, setFiles] = useState([]);
 
-  const acceptedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+  const acceptedTypes = [
+    'image/jpeg',                      // jpg, jpeg
+    'image/png',                       // png
+    'image/webp',                     // webp
+    'application/pdf',                // pdf
+    'text/plain',                    // plain text files (.txt)
+    'application/msword',            // older Word docs (.doc)
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // newer Word docs (.docx)
+    'application/vnd.ms-excel',      // older Excel files (.xls)
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // newer Excel (.xlsx)
+    'application/zip',               // zip archives
+    'application/x-rar-compressed'  // rar archives
+  ];
 
-  const handleLoginSuccess = (credentialResponse) => {
+  const fetchFiles = async (userEmail) => {
     try {
-      const decoded = jwtDecode(credentialResponse.credential);
-      const userData = {
-        name: decoded.name,
-        email: decoded.email,
-        picture: decoded.picture,
-        token: credentialResponse.credential
-      };
-      setUser(userData);
-      localStorage.setItem('user', JSON.stringify(userData));
-      setSuccess('Logged in successfully!');
-      setError('');
+      const response = await axios.post('http://localhost:5000/api/files/files', { userEmail });
+      setFiles(response.data);
+    } catch (err) {
+      setError('Failed to fetch uploaded files');
+    }
+  };
+
+  const handleLoginSuccess = async (credentialResponse) => {
+    try {
+      // Exchange Google token for JWT token
+      const response = await axios.post(
+        'http://localhost:5000/api/auth/google-auth',
+        { credential: credentialResponse.credential },
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data.success) {
+        const userData = {
+          name: response.data.user.name,
+          email: response.data.user.email,
+          picture: response.data.user.picture,
+          token: response.data.token
+        };
+        setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
+        setSuccess('Logged in successfully!');
+        setError('');
+        fetchFiles(userData.email);
+      } else {
+        throw new Error(response.data.error || 'Login failed');
+      }
     } catch (err) {
       console.error('Login error:', err);
-      setError('Failed to process Google login');
+      setError('Failed to process Google login: ' + err.message);
     }
   };
 
@@ -51,8 +90,8 @@ const Upload = () => {
       return;
     }
 
-    if (selectedFile.size > 5 * 1024 * 1024) {
-      setError('File size must be less than 5MB');
+    if (selectedFile.size > 100 * 1024 * 1024) {
+      setError('File size must be less than 100MB');
       return;
     }
 
@@ -96,6 +135,7 @@ const Upload = () => {
 
       setSuccess('File uploaded successfully!');
       console.log('Upload response:', response.data);
+      fetchFiles(user.email);
       
     } catch (err) {
       let errorMessage = 'Upload failed';
@@ -123,6 +163,13 @@ const Upload = () => {
     setPreview('');
     if (preview) URL.revokeObjectURL(preview);
   };
+
+  React.useEffect(() => {
+    if (user) {
+      fetchFiles(user.email);
+    }
+    // eslint-disable-next-line
+  }, [user]);
 
   return (
     <div className="container mt-4">
@@ -178,6 +225,22 @@ const Upload = () => {
 
           <form onSubmit={handleSubmit}>
             <div className="mb-3">
+
+          {/* Your Uploads Section */}
+          <div className="mt-4">
+            <h3>Your Uploads</h3>
+            {files.length === 0 ? (
+              <p>No uploads yet.</p>
+            ) : (
+              <ul>
+                {files.map(file => (
+                  <li key={file.id}>
+                    {file.name} ({file.size}, {file.type})
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
               <label htmlFor="fileInput" className="form-label">
                 Select File (JPEG, PNG, WebP - Max 5MB)
               </label>
