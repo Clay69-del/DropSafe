@@ -66,12 +66,18 @@ const uploadFile = async (req, res) => {
 };
 
 // Fetch Handler
+// Fetch Handler for backend (Node.js)
 const fetchFiles = async (req, res) => {
   try {
-    const user = req.user;
+    const { userEmail } = req.body;
+    if (!userEmail) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    // Query DB for files belonging to this user
     const [rows] = await db.execute(
       'SELECT id, original_name AS name, file_type AS type, file_size_mb AS size, uploaded_at AS uploaded, encrypted FROM uploaded_files WHERE user_email = ? ORDER BY uploaded_at DESC',
-      [user.email]
+      [userEmail]
     );
     res.status(200).json(rows);
   } catch (error) {
