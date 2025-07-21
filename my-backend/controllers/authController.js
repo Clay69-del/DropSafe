@@ -56,20 +56,36 @@ export const register = async (req, res) => {
 };
 
 export const login = async (req, res) => {
+  console.log('Login request body:', JSON.stringify(req.body, null, 2));
   const { email, password } = req.body;
+  
   if (!email || !password) {
+    console.error('Missing email or password in login request');
     return res.status(400).json({ error: 'Email and password required' });
   }
+  
   if (!validateEmail(email)) {
+    console.error('Invalid email format:', email);
     return res.status(400).json({ error: 'Invalid email' });
   }
+  
   if (!validatePassword(password)) {
+    console.error('Invalid password length');
     return res.status(400).json({ error: 'Password must be at least 6 characters' });
   }
+  
   try {
+    console.log('Looking up user with email:', email);
     const user = await User.findOne({ where: { email } });
-    if (!user || !user.password) {
+    
+    if (!user) {
+      console.error('No user found with email:', email);
       return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    
+    if (!user.password) {
+      console.error('User has no password set (possibly registered with Google)');
+      return res.status(401).json({ error: 'Please sign in with Google' });
     }
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
@@ -131,15 +147,28 @@ export const logout = async (req, res) => {
 };
 
 export const googleAuthLogin = async (req, res) => {
-  const { name, email, googleId, picture } = req.body; // Accept Google info
-
+  const { credential } = req.body;
+  
+  if (!credential) {
+    return res.status(400).json({ error: 'Google credential is required' });
+  }
+  
   try {
-    // Find or create user by email
+    // Decode the JWT token to get user info
+    const decoded = jwt.decode(credential);
+    
+    if (!decoded || !decoded.email) {
+      return res.status(400).json({ error: 'Invalid Google token: missing email' });
+    }
+    
+    const { email, name, picture, sub: googleId } = decoded;
+    
     let user = await User.findOne({ where: { email } });
+    
     if (!user) {
       user = await User.create({
         googleId: googleId || '',
-        name,
+        name: name || 'User',
         email,
         picture: picture || ''
       });
@@ -152,10 +181,18 @@ export const googleAuthLogin = async (req, res) => {
       { expiresIn: '1d' }
     );
 
-    // Return token and user to frontend
-    res.status(200).json({ token, user: { id: user.id, name: user.name, email: user.email, picture: user.picture } });
+    // Return token and user to frontend in the expected format
+    res.status(200).json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        picture: user.picture
+      }
+    });
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: 'Login failed' });
   }
 };

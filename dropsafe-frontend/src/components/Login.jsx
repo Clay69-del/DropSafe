@@ -36,23 +36,23 @@ const Login = () => {
     try {
       const response = await api.post('/auth/login', { email, password });
       
-      // Handle different possible response structures
-      const responseData = response.data || {};
-      const userData = responseData.user || responseData;
-      const token = responseData.token || userData.token;
+      // Handle the backend response structure
+      const { token, user } = response.data;
       
-      if (!userData || !token) {
+      if (!user || !token) {
         throw new Error('Invalid response from server');
       }
       
       // Store the complete user data with token
-      const completeUserData = {
-        ...userData,
+      const userData = {
+        id: user.id,
+        name: user.name,
+        email: user.email,
         token: token
       };
       
-      localStorage.setItem('user', JSON.stringify(completeUserData));
-      login(completeUserData);
+      localStorage.setItem('user', JSON.stringify(userData));
+      login(userData);
       navigate('/dashboard');
     } catch (err) {
       console.error('Login error:', err);
@@ -60,6 +60,7 @@ const Login = () => {
                          err.message || 
                          'Login failed. Please check your credentials and try again.';
       setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -67,32 +68,59 @@ const Login = () => {
 
   const handleGoogleSuccess = async (credentialResponse) => {
     try {
+      setIsLoading(true);
+      setError('');
+      
       if (!credentialResponse || !credentialResponse.credential) {
         throw new Error('Invalid Google credential response');
       }
 
+      console.log('Google credential received, sending to backend...');
+      
       // Send the credential to your backend for verification
       const response = await api.post('/auth/google-auth', {
         credential: credentialResponse.credential,
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        withCredentials: true
       });
       
-      // Handle different possible response structures
-      const responseData = response.data || {};
-      const userData = responseData.user || responseData;
-      const token = responseData.token || userData.token;
+      console.log('Google auth response:', response);
       
-      if (!userData || !token) {
-        throw new Error('Invalid response from Google authentication');
+      if (!response) {
+        throw new Error('No response received from server');
+      }
+      
+      // The response is already the data we need
+      const responseData = response;
+      console.log('Response data:', responseData);
+      
+      if (!responseData) {
+        throw new Error('No data in response');
+      }
+      
+      // Extract token and user from the response
+      const { token, user } = responseData;
+      
+      if (!token || !user) {
+        console.error('Missing token or user in response:', responseData);
+        throw new Error('Invalid response from server: missing token or user data');
       }
       
       // Store the complete user data with token
-      const completeUserData = {
-        ...userData,
+      const userData = {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        picture: user.picture,
         token: token
       };
       
-      localStorage.setItem('user', JSON.stringify(completeUserData));
-      login(completeUserData);
+      console.log('Storing user data:', userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+      login(userData);
       
       // Redirect to dashboard
       navigate('/dashboard');

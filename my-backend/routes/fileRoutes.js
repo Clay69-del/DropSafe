@@ -86,7 +86,7 @@ router.post(
  *       500:
  *         description: Server error
  */
-router.get('/files', authMiddleware, fetchFiles);
+router.get('/', authMiddleware, fetchFiles);
 
 /**
  * @swagger

@@ -1,10 +1,21 @@
-// dropsafe-frontend/src/components/Upload.jsx
 import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUpload, FiX, FiTrash2, FiDownload, FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
+import { 
+  FiUpload, 
+  FiX, 
+  FiTrash2, 
+  FiDownload, 
+  FiAlertCircle, 
+  FiCheckCircle,
+  FiFile,
+  FiImage,
+  FiFileText,
+  FiArrowLeft
+} from 'react-icons/fi';
 import { UserContext } from '../context/UserContext';
 import { fileApi } from '../utils/api';
 import { toast } from 'react-toastify';
+import './Upload.css';
 
 // 50MB in bytes
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
@@ -171,106 +182,116 @@ const Upload = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white shadow rounded-lg p-6 mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-6">Upload Files</h1>
-          
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center mb-6">
-            <input
-              type="file"
-              onChange={handleFileChange}
-              className="hidden"
-              id="file-upload"
-              disabled={isUploading}
-            />
-            <label
-              htmlFor="file-upload"
-              className="cursor-pointer bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium py-2 px-4 rounded-md border border-gray-300 inline-flex items-center"
-            >
-              <FiUpload className="mr-2" />
-              {file ? file.name : 'Choose a file'}
-            </label>
-            {file && (
-              <button
+    <div className="upload-container">
+      <div className="upload-header">
+        <h1>Upload Files</h1>
+        <p>Upload and manage your files securely with DropSafe</p>
+      </div>
+      
+      <div className="upload-box">
+        <div className="upload-icon">
+          <FiUpload size={48} />
+        </div>
+        <div className="upload-instructions">
+          <p>Drag and drop files here, or click to browse</p>
+          <small>Supports: JPG, PNG, PDF, DOC, XLS, ZIP (Max 50MB)</small>
+        </div>
+        <input
+          type="file"
+          onChange={handleFileChange}
+          className="file-input"
+          id="file-upload"
+          disabled={isUploading}
+        />
+        <label htmlFor="file-upload" className="upload-btn">
+          Select Files
+        </label>
+
+        {file && (
+          <div className="file-preview-container">
+            <div className="file-details">
+              <div className="file-icon-container">
+                <FiFile className="file-icon" />
+              </div>
+              <div className="file-info">
+                <div className="file-name">{file.name}</div>
+                <div className="file-size">{(file.size / 1024).toFixed(2)} KB</div>
+              </div>
+              <button 
+                className="remove-file-btn"
                 onClick={() => setFile(null)}
-                className="ml-2 text-red-500 hover:text-red-700"
                 disabled={isUploading}
               >
                 <FiX />
               </button>
+            </div>
+
+            {uploadProgress > 0 && uploadProgress < 100 && (
+              <div className="progress-container">
+                <div className="progress-bar">
+                  <div 
+                    className="progress-fill" 
+                    style={{ width: `${uploadProgress}%` }}
+                  ></div>
+                </div>
+                <div className="progress-text">{Math.round(uploadProgress)}% uploaded</div>
+              </div>
             )}
-            
-            <button
-              onClick={handleUpload}
-              disabled={!file || isUploading}
-              className={`mt-4 w-full sm:w-auto px-6 py-2 rounded-md text-white font-medium ${
-                !file || isUploading
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700'
-              }`}
-            >
-              {isUploading ? 'Uploading...' : 'Upload File'}
-            </button>
+
+            <div className="button-group">
+              <button 
+                className="cancel-btn"
+                onClick={() => setFile(null)}
+                disabled={isUploading}
+              >
+                Cancel
+              </button>
+              <button
+                className="upload-submit-btn"
+                onClick={handleUpload}
+                disabled={!file || isUploading}
+              >
+                {isUploading ? 'Uploading...' : 'Upload File'}
+              </button>
+            </div>
           </div>
+        )}
 
-          {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
-              {error}
+        {(error || success) && (
+          <div className={`status-message ${error ? 'error' : 'success'}`}>
+            <div className="status-icon">
+              {error ? <FiAlertCircle /> : <FiCheckCircle />}
             </div>
-          )}
+            <div className="status-content">
+              <p>{error || success}</p>
+            </div>
+          </div>
+        )}
+      </div>
 
-          {success && (
-            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4">
-              {success}
-            </div>
-          )}
-        </div>
-
-        <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Your Files</h2>
-          {files.length === 0 ? (
-            <p className="text-gray-500">No files uploaded yet.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Filename</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {files.map((file) => (
-                    <tr key={file.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {file.filename}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {(file.size / 1024).toFixed(2)} KB
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button
-                          onClick={() => handleDownload(file.filename)}
-                          className="text-blue-600 hover:text-blue-900 mr-4"
-                        >
-                          <FiDownload className="inline mr-1" /> Download
-                        </button>
-                        <button
-                          onClick={() => handleDelete(file.id)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          <FiTrash2 className="inline mr-1" /> Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+      <div className="recent-uploads">
+        <h2>Recent Uploads</h2>
+        {files.length === 0 ? (
+          <p className="empty-state">No files uploaded yet.</p>
+        ) : (
+          <div className="uploads-list">
+            {files.map((file) => (
+              <div key={file.id} className="upload-item">
+                <div className="upload-item-info">
+                  <FiFile className="upload-item-icon" />
+                  <span className="upload-item-name">{file.filename}</span>
+                </div>
+                <a 
+                  href={`/api/files/download/${file.filename}`} 
+                  className="upload-item-download"
+                  download
+                >
+                  <FiDownload size={16} /> Download
+                </a>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

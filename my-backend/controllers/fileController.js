@@ -232,18 +232,8 @@ const fetchFiles = async (req, res) => {
     // Query DB for files belonging to this user
     const files = await File.findAll({
       where: { userId },
-      order: [['uploaded', 'DESC']],
-      attributes: [
-        'id',
-        'originalName',
-        'name',
-        'type',
-        'mimeType',
-        'size',
-        'uploaded',
-        'encrypted',
-        'path'
-      ]
+      order: [['uploaded', 'DESC']]
+      // Remove explicit attributes to select all columns from the model
     });
     
     // Format response
@@ -258,8 +248,8 @@ const fetchFiles = async (req, res) => {
       uploaded: file.uploaded,
       encrypted: file.encrypted,
       downloadUrl: `/api/files/download/${file.id}`,
-      previewUrl: file.mimeType.startsWith('image/') || 
-                 file.mimeType === 'application/pdf' ? 
+      previewUrl: (file.mimeType && (file.mimeType.startsWith('image/') || 
+                 file.mimeType === 'application/pdf')) ? 
                  `/api/files/view/${file.id}` : null
     }));
     

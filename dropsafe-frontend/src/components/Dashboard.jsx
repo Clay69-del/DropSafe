@@ -3,7 +3,44 @@ import { Link, useNavigate } from 'react-router-dom';
 import { UserContext } from '../context/UserContext';
 import api from '../utils/api';
 import { toast } from 'react-toastify';
-import { FiDownload, FiTrash2, FiEye, FiGrid, FiList, FiFile, FiImage, FiUpload } from 'react-icons/fi';
+import './Dashboard.css';
+import { 
+  FiDownload, 
+  FiTrash2, 
+  FiEye, 
+  FiGrid, 
+  FiList, 
+  FiFile, 
+  FiImage, 
+  FiUpload, 
+  FiSearch, 
+  FiUser,
+  FiLogOut,
+  FiPlus,
+  FiFileText,
+  FiFilePlus,
+  FiHome
+} from 'react-icons/fi';
+
+// File icon component based on file type
+const FileIcon = ({ mimeType, className = '' }) => {
+  if (mimeType?.startsWith('image/')) {
+    return <FiImage className={className} />;
+  } else if (mimeType === 'application/pdf') {
+    return <FiFileText className={className} />;
+  } else {
+    return <FiFile className={className} />;
+  }
+};
+
+// Format file size
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
 
 const Dashboard = () => {
   const { user } = useContext(UserContext);
@@ -19,11 +56,41 @@ const Dashboard = () => {
   const fetchFiles = async () => {
     try {
       setLoading(true);
+      console.log('Fetching files...');
       const response = await api.get('/files');
-      setFiles(response.data);
+      console.log('API Response:', response);
+      
+      // The backend returns either { files: [...] } or { success, data: { files: [...] } }
+      let files = [];
+      
+      // Case 1: Direct files array
+      if (Array.isArray(response)) {
+        files = response;
+      } 
+      // Case 2: { files: [...] }
+      else if (response.files && Array.isArray(response.files)) {
+        files = response.files;
+      }
+      // Case 3: { success, data: { files: [...] } }
+      else if (response.data?.files && Array.isArray(response.data.files)) {
+        files = response.data.files;
+      }
+      // Case 4: { data: [...] } (direct data array)
+      else if (response.data && Array.isArray(response.data)) {
+        files = response.data;
+      }
+      
+      if (files.length > 0) {
+        console.log('Files loaded successfully:', files);
+        setFiles(files);
+      } else {
+        console.warn('No files found or empty response');
+        setFiles([]);
+      }
     } catch (error) {
       console.error('Error fetching files:', error);
       toast.error('Failed to load files');
+      setFiles([]);
     } finally {
       setLoading(false);
     }
@@ -97,10 +164,16 @@ const Dashboard = () => {
     }
   }, [user, navigate]);
 
+  // Handle logout
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    window.location.href = '/';
+  };
+
   if (!user) return null;
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="dashboard-container">
       {/* User Welcome Section */}
       <div className="mb-8 text-center">
         <div className="flex justify-center mb-4">

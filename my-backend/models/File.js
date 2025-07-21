@@ -15,6 +15,10 @@ export default (sequelize) => {
         key: 'id',
       },
     },
+    originalName: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
     name: {
       type: DataTypes.STRING,
       allowNull: false,
@@ -22,6 +26,10 @@ export default (sequelize) => {
     type: {
       type: DataTypes.STRING,
       allowNull: false,
+    },
+    mimeType: {
+      type: DataTypes.STRING,
+      allowNull: true,
     },
     size: {
       type: DataTypes.STRING,

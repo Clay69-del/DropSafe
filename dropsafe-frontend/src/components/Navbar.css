@@ -9,6 +9,16 @@
   z-index: 1000;
   height: 64px;
   padding: 0 24px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Add padding to the main content to account for fixed navbar */
+.main-content {
+  padding-top: 80px; /* 64px (navbar height) + 16px (extra spacing) */
+  min-height: calc(100vh - 80px);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .navbar-container {
