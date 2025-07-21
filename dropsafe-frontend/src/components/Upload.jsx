@@ -1,291 +1,275 @@
-import React, { useState, useContext } from 'react';
-import axios from 'axios';
-import { FiUpload, FiX } from 'react-icons/fi';
+// dropsafe-frontend/src/components/Upload.jsx
+import React, { useState, useContext, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { FiUpload, FiX, FiTrash2, FiDownload, FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
+import { UserContext } from '../context/UserContext';
+import { fileApi } from '../utils/api';
+import { toast } from 'react-toastify';
 
-import { GoogleLogin } from '@react-oauth/google';
-import { jwtDecode } from 'jwt-decode';
+// 50MB in bytes
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
 const Upload = () => {
   const [file, setFile] = useState(null);
-  const [preview, setPreview] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [files, setFiles] = useState([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [user, setUser] = useState(
-    localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : null
-  );
-  const [files, setFiles] = useState([]);
+  const { user } = useContext(UserContext);
+  const navigate = useNavigate();
 
   const acceptedTypes = [
-    'image/jpeg',                      // jpg, jpeg
-    'image/png',                       // png
-    'image/webp',                     // webp
-    'application/pdf',                // pdf
-    'text/plain',                    // plain text files (.txt)
-    'application/msword',            // older Word docs (.doc)
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // newer Word docs (.docx)
-    'application/vnd.ms-excel',      // older Excel files (.xls)
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // newer Excel (.xlsx)
-    'application/zip',               // zip archives
-    'application/x-rar-compressed'  // rar archives
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'application/pdf',
+    'text/plain',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/zip',
+    'application/x-rar-compressed'
   ];
 
-  const fetchFiles = async (userEmail) => {
+  const fetchFiles = async () => {
     try {
-      const response = await axios.post('http://localhost:5000/api/files/files', { userEmail });
-      setFiles(response.data);
-    } catch (err) {
-      setError('Failed to fetch uploaded files');
+      const response = await fileApi.getFiles();
+      setFiles(response.data.files || []);
+    } catch (error) {
+      console.error('Error fetching files:', error);
     }
-  };
-
-  const handleLoginSuccess = async (credentialResponse) => {
-    try {
-      // Exchange Google token for JWT token
-      const response = await axios.post(
-        'http://localhost:5000/api/auth/google-auth',
-        { credential: credentialResponse.credential },
-        {
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      if (response.data.success) {
-        const userData = {
-          name: response.data.user.name,
-          email: response.data.user.email,
-          picture: response.data.user.picture,
-          token: response.data.token
-        };
-        setUser(userData);
-        localStorage.setItem('user', JSON.stringify(userData));
-        setSuccess('Logged in successfully!');
-        setError('');
-        fetchFiles(userData.email);
-      } else {
-        throw new Error(response.data.error || 'Login failed');
-      }
-    } catch (err) {
-      console.error('Login error:', err);
-      setError('Failed to process Google login: ' + err.message);
-    }
-  };
-
-  const handleLogout = () => {
-    setUser(null);
-    localStorage.removeItem('user');
-    setFile(null);
-    setPreview('');
-    setSuccess('Logged out successfully');
   };
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
+    
     if (!selectedFile) return;
 
-    if (!acceptedTypes.includes(selectedFile.type)) {
-      setError('Only JPEG, PNG, or WebP images are allowed');
+    // Reset previous state
+    setUploadProgress(0);
+    
+    // Validate file type
+    if (selectedFile && !acceptedTypes.includes(selectedFile.type)) {
+      toast.error('File type not supported');
       return;
     }
 
-    if (selectedFile.size > 100 * 1024 * 1024) {
-      setError('File size must be less than 100MB');
+    // Validate file size
+    if (selectedFile.size > MAX_FILE_SIZE) {
+      toast.error(`File size exceeds the limit of ${MAX_FILE_SIZE / (1024 * 1024)}MB`);
       return;
     }
 
     setFile(selectedFile);
-    setPreview(URL.createObjectURL(selectedFile));
-    setError('');
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleUpload = async () => {
     if (!file) {
-      setError('Please select a file to upload');
+      toast.error('Please select a file');
       return;
     }
 
-    if (!user) {
-      setError('Please login to upload files');
-      return;
-    }
-
-    setIsUploading(true);
-    setError('');
-    setSuccess('');
+    const formData = new FormData();
+    formData.append('file', file);
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('userEmail', user.email);
+      setIsUploading(true);
+      setUploadProgress(0);
+      setError('');
+      setSuccess('');
 
-      const response = await axios.post(
-        'http://localhost:5000/api/uploads', 
+      const response = await fileApi.uploadFile(
         formData, 
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-            'Authorization': `Bearer ${user.token}`
-          },
-          timeout: 15000
+        (progress) => {
+          setUploadProgress(progress);
         }
       );
 
+      toast.success('File uploaded successfully!', {
+        icon: <FiCheckCircle className="text-green-500" />
+      });
+      
+      // Reset form
+      setFile(null);
+      setUploadProgress(0);
       setSuccess('File uploaded successfully!');
-      console.log('Upload response:', response.data);
-      fetchFiles(user.email);
       
-    } catch (err) {
-      let errorMessage = 'Upload failed';
-      
-      if (err.response) {
-        errorMessage = err.response.data?.message || 
-                      err.response.data?.error || 
-                      errorMessage;
-      } else if (err.code === 'ECONNABORTED') {
-        errorMessage = 'Request timed out. Please try again.';
-      } else if (err.message.includes('Network Error')) {
-        errorMessage = 'Network error. Please check your connection.';
-      } else {
-        errorMessage = err.message;
-      }
-      
+      // Refresh files list
+      await fetchFiles();
+    } catch (error) {
+      console.error('Upload failed:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Upload failed. Please try again.';
       setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsUploading(false);
     }
   };
 
-  const removeFile = () => {
-    setFile(null);
-    setPreview('');
-    if (preview) URL.revokeObjectURL(preview);
+  const handleDelete = async (fileId) => {
+    if (window.confirm('Are you sure you want to delete this file?')) {
+      try {
+        await fileApi.deleteFile(fileId);
+        toast.success('File deleted successfully');
+        await fetchFiles();
+      } catch (error) {
+        console.error('Delete failed:', error);
+        toast.error('Failed to delete file');
+      }
+    }
   };
 
-  React.useEffect(() => {
-    if (user) {
-      fetchFiles(user.email);
+  const handleDownload = async (fileId, filename) => {
+    try {
+      const response = await fileApi.viewFile(fileId);
+      
+      // Create a blob from the response
+      const blob = new Blob([response.data], { type: response.data.type });
+      const url = window.URL.createObjectURL(blob);
+      
+      // Create and trigger a download link
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up
+      window.URL.revokeObjectURL(url);
+      link.remove();
+      
+      toast.success('Download started');
+    } catch (error) {
+      console.error('Download failed:', error);
+      toast.error('Failed to download file');
     }
-    // eslint-disable-next-line
-  }, [user]);
+  };
+
+  useEffect(() => {
+    if (user?.email) {
+      fetchFiles();
+    }
+  }, [user?.email]);
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
+          <h2 className="text-2xl font-bold mb-4">Please log in</h2>
+          <p className="text-gray-600 mb-4">You need to be logged in to upload files.</p>
+          <button
+            onClick={() => navigate('/login')}
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
+          >
+            Go to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="container mt-4">
-      <div className="card shadow">
-        <div className="card-body">
-          <h2 className="card-title mb-4">
-            <FiUpload className="me-2" />
-            Secure File Upload
-          </h2>
+    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto">
+        <div className="bg-white shadow rounded-lg p-6 mb-8">
+          <h1 className="text-2xl font-bold text-gray-900 mb-6">Upload Files</h1>
           
-          {/* Authentication Section */}
-          <div className="mb-4">
-            {!user ? (
-              <div className="text-center">
-                <p className="mb-3">Please login to upload files</p>
-                <GoogleLogin
-                  onSuccess={handleLoginSuccess}
-                  onError={() => setError('Google login failed')}
-                  useOneTap
-                />
-              </div>
-            ) : (
-              <div className="d-flex align-items-center mb-3">
-                <img 
-                  src={user.picture} 
-                  alt="User" 
-                  className="rounded-circle me-2" 
-                  width="40" 
-                  height="40"
-                />
-                <span>{user.name}</span>
-                <button 
-                  onClick={handleLogout}
-                  className="btn btn-sm btn-outline-danger ms-auto"
-                >
-                  Logout
-                </button>
-              </div>
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center mb-6">
+            <input
+              type="file"
+              onChange={handleFileChange}
+              className="hidden"
+              id="file-upload"
+              disabled={isUploading}
+            />
+            <label
+              htmlFor="file-upload"
+              className="cursor-pointer bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium py-2 px-4 rounded-md border border-gray-300 inline-flex items-center"
+            >
+              <FiUpload className="mr-2" />
+              {file ? file.name : 'Choose a file'}
+            </label>
+            {file && (
+              <button
+                onClick={() => setFile(null)}
+                className="ml-2 text-red-500 hover:text-red-700"
+                disabled={isUploading}
+              >
+                <FiX />
+              </button>
             )}
+            
+            <button
+              onClick={handleUpload}
+              disabled={!file || isUploading}
+              className={`mt-4 w-full sm:w-auto px-6 py-2 rounded-md text-white font-medium ${
+                !file || isUploading
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700'
+              }`}
+            >
+              {isUploading ? 'Uploading...' : 'Upload File'}
+            </button>
           </div>
 
           {error && (
-            <div className="alert alert-danger">
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
               {error}
             </div>
           )}
-          
+
           {success && (
-            <div className="alert alert-success">
+            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4">
               {success}
             </div>
           )}
+        </div>
 
-          <form onSubmit={handleSubmit}>
-            <div className="mb-3">
-
-          {/* Your Uploads Section */}
-          <div className="mt-4">
-            <h3>Your Uploads</h3>
-            {files.length === 0 ? (
-              <p>No uploads yet.</p>
-            ) : (
-              <ul>
-                {files.map(file => (
-                  <li key={file.id}>
-                    {file.name} ({file.size}, {file.type})
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-              <label htmlFor="fileInput" className="form-label">
-                Select File (JPEG, PNG, WebP - Max 5MB)
-              </label>
-              <input
-                type="file"
-                id="fileInput"
-                className="form-control"
-                onChange={handleFileChange}
-                accept={acceptedTypes.join(',')}
-              />
+        <div className="bg-white shadow rounded-lg p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Your Files</h2>
+          {files.length === 0 ? (
+            <p className="text-gray-500">No files uploaded yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Filename</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {files.map((file) => (
+                    <tr key={file.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {file.filename}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {(file.size / 1024).toFixed(2)} KB
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button
+                          onClick={() => handleDownload(file.filename)}
+                          className="text-blue-600 hover:text-blue-900 mr-4"
+                        >
+                          <FiDownload className="inline mr-1" /> Download
+                        </button>
+                        <button
+                          onClick={() => handleDelete(file.id)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          <FiTrash2 className="inline mr-1" /> Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-
-            {preview && (
-              <div className="mb-3 position-relative">
-                <img
-                  src={preview}
-                  alt="Preview"
-                  className="img-thumbnail d-block"
-                  style={{ maxHeight: '200px' }}
-                />
-                <button
-                  type="button"
-                  className="btn btn-sm btn-danger position-absolute top-0 end-0 m-2"
-                  onClick={removeFile}
-                >
-                  <FiX />
-                </button>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={isUploading || !file || !user}
-            >
-              {isUploading ? (
-                <>
-                  <span className="spinner-border spinner-border-sm me-2"></span>
-                  Uploading...
-                </>
-              ) : (
-                'Upload File'
-              )}
-            </button>
-          </form>
+          )}
         </div>
       </div>
     </div>
