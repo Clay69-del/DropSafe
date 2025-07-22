@@ -47,7 +47,9 @@ const FileUpload = () => {
   const fetchFiles = async () => {
     try {
       const response = await fileApi.getFiles();
-      if (response && Array.isArray(response.files)) {
+      if (response && Array.isArray(response.data?.files)) {
+        setFiles(response.data.files);
+      } else if (response && Array.isArray(response.files)) {
         setFiles(response.files);
       } else if (Array.isArray(response)) {
         setFiles(response);
