@@ -99,14 +99,15 @@ const Dashboard = () => {
   // Handle file download
   const handleDownload = async (file) => {
     try {
-      const response = await api.get(`/files/download/${file.id}`, { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const blob = await api.get(`/files/view/${file.id}`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', file.originalName || file.name);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.URL.revokeObjectURL(url);
       toast.success(`Downloaded ${file.name} successfully`);
     } catch (error) {
       console.error('Download error:', error);
@@ -136,10 +137,10 @@ const Dashboard = () => {
     try {
       setSelectedFile(file);
       if (file.mimeType?.startsWith('image/')) {
-        const response = await api.get(`/files/${file.id}`, { responseType: 'blob' });
+        const blob = await api.get(`/files/view/${file.id}`, { responseType: 'blob' });
         setSelectedFile(prev => ({
           ...prev,
-          downloadUrl: URL.createObjectURL(new Blob([response.data]))
+          downloadUrl: URL.createObjectURL(blob)
         }));
       }
       setShowPreviewModal(true);
@@ -183,7 +184,7 @@ const Dashboard = () => {
             className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
           />
         </div>
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">Welcome back, {user.name || user.email.split('@')[0]}</h1>
+        <h1 className="text-3xl font-bold text-gray-800 mb-2">Welcome back, {user?.name}</h1>
         <p className="text-gray-600">Manage your secure files and account</p>
       </div>
 

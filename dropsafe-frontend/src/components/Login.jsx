@@ -36,20 +36,14 @@ const Login = () => {
     try {
       const response = await api.post('/auth/login', { email, password });
       
-      // Handle the backend response structure
-      const { token, user } = response.data;
+      // The response is the user data with token
+      const { user, token } = response;
       
       if (!user || !token) {
         throw new Error('Invalid response from server');
       }
-      
-      // Store the complete user data with token
-      const userData = {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        token: token
-      };
+
+      const userData = { ...user, token };
       
       localStorage.setItem('user', JSON.stringify(userData));
       login(userData);
@@ -74,8 +68,6 @@ const Login = () => {
       if (!credentialResponse || !credentialResponse.credential) {
         throw new Error('Invalid Google credential response');
       }
-
-      console.log('Google credential received, sending to backend...');
       
       // Send the credential to your backend for verification
       const response = await api.post('/auth/google-auth', {
@@ -87,15 +79,12 @@ const Login = () => {
         withCredentials: true
       });
       
-      console.log('Google auth response:', response);
-      
       if (!response) {
         throw new Error('No response received from server');
       }
       
       // The response is already the data we need
       const responseData = response;
-      console.log('Response data:', responseData);
       
       if (!responseData) {
         throw new Error('No data in response');
@@ -118,7 +107,6 @@ const Login = () => {
         token: token
       };
       
-      console.log('Storing user data:', userData);
       localStorage.setItem('user', JSON.stringify(userData));
       login(userData);
       

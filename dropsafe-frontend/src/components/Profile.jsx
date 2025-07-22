@@ -1,7 +1,8 @@
 import React, { useContext, useState, useRef } from 'react';
-import axios from 'axios';
 import { UserContext } from '../context/UserContext';
 import { useNavigate } from 'react-router-dom';
+import api from '../utils/api';
+
 
 const Profile = () => {
   const { user, setUser } = useContext(UserContext);
@@ -25,9 +26,7 @@ const Profile = () => {
     e.preventDefault();
     setMsg(''); setErr('');
     try {
-      const res = await axios.put('/api/users/me', form, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
+      const res = await api.put('/users/me', form);
       setUser({ ...user, ...form });
       localStorage.setItem('user', JSON.stringify({ ...user, ...form }));
       setMsg('Profile updated successfully!');
@@ -45,10 +44,9 @@ const Profile = () => {
     const data = new FormData();
     data.append('profilePicture', picFile);
     try {
-      const res = await axios.post('/api/users/me/profile-picture', data, {
+      const res = await api.post('/users/me/profile-picture', data, {
         headers: {
           'Content-Type': 'multipart/form-data',
-          Authorization: `Bearer ${localStorage.getItem('token')}`
         }
       });
       setProfilePic(res.data.profilePicture);
@@ -67,11 +65,9 @@ const Profile = () => {
     e.preventDefault();
     setMsg(''); setErr('');
     try {
-      await axios.put('/api/users/me/password', {
+      await api.put('/users/me/password', {
         currentPassword: passwords.current,
         newPassword: passwords.new
-      }, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       setMsg('Password changed successfully!');
       setPasswords({ current: '', new: '' });

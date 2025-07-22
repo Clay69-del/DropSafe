@@ -40,15 +40,20 @@ function Register() {
     setIsLoading(true);
     
     try {
-      const response = await api.post('/api/auth/register', { 
+      const response = await api.post('/auth/register', { 
         name, 
         email, 
         password 
       });
       
       // Log the user in after successful registration
-      login(response.data);
-      navigate('/dashboard');
+      const { user, token } = response;
+      if (user && token) {
+        login({ ...user, token });
+        navigate('/dashboard');
+      } else {
+        throw new Error('Invalid registration response');
+      }
       
     } catch (err) {
       setError(
