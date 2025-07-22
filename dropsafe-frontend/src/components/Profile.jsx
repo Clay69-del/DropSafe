@@ -8,7 +8,7 @@ const Profile = () => {
   const { user, setUser } = useContext(UserContext);
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState({ name: user?.name || '', email: user?.email || '' });
-  const [profilePic, setProfilePic] = useState(user?.picture || '');
+  const [profilePic, setProfilePic] = useState(user?.profilePicture || '/default-profile.png');
   const [picFile, setPicFile] = useState(null);
   const [passwords, setPasswords] = useState({ current: '', new: '' });
   const [msg, setMsg] = useState('');
@@ -27,8 +27,12 @@ const Profile = () => {
     setMsg(''); setErr('');
     try {
       const res = await api.put('/api/users/me', form);
-      setUser({ ...user, ...form });
-      localStorage.setItem('user', JSON.stringify({ ...user, ...form }));
+      // Use the returned user object from backend
+      if (res && res.user) {
+        setUser({ ...user, ...res.user });
+        localStorage.setItem('user', JSON.stringify({ ...user, ...res.user }));
+        setProfilePic(res.user.profilePicture || '/default-profile.png');
+      }
       setMsg('Profile updated successfully!');
       setEditMode(false);
     } catch (error) {
@@ -49,9 +53,11 @@ const Profile = () => {
           'Content-Type': 'multipart/form-data',
         }
       });
-      setProfilePic(res.data.profilePicture);
-      setUser({ ...user, picture: res.data.profilePicture });
-      localStorage.setItem('user', JSON.stringify({ ...user, picture: res.data.profilePicture }));
+      if (res && res.profilePicture) {
+        setProfilePic(res.profilePicture);
+        setUser({ ...user, profilePicture: res.profilePicture });
+        localStorage.setItem('user', JSON.stringify({ ...user, profilePicture: res.profilePicture }));
+      }
       setMsg('Profile picture updated!');
       setPicFile(null);
       fileInputRef.current.value = '';
