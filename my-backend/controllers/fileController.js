@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import multer from 'multer';
+import { sequelize } from '../models/index.js';
 import { File, User } from '../models/index.js';
 
 // Configuration
