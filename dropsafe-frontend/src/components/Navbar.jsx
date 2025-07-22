@@ -51,7 +51,7 @@ const Navbar = () => {
         <div className="user-section">
           {user ? (
             <div className="user-info">
-              <span className="user-email">{user.name || user.email}</span>
+              <Link to="/profile" className="user-email">{user.name || user.email}</Link>
               <button onClick={handleLogout} className="logout-button">
                 <FiLogOut className="logout-icon" /> Logout
               </button>

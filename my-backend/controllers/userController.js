@@ -17,14 +17,24 @@ export const getProfile = async (req, res) => {
 export const updateProfile = async (req, res) => {
   try {
     const { name, email } = req.body;
+    if (!name && !email) {
+      return res.status(400).json({ error: 'Name or email is required to update profile' });
+    }
     const user = await User.findByPk(req.user.id);
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) {
+      console.error('User not found for update:', req.user.id);
+      return res.status(404).json({ error: 'User not found' });
+    }
     if (name) user.name = name;
     if (email) user.email = email;
-    await user.save();
+    await user.save().catch(saveErr => {
+      console.error('Error saving user during profile update:', saveErr);
+      throw new Error('Database save failed');
+    });
     res.json({ message: 'Profile updated', user: { id: user.id, name: user.name, email: user.email, profilePicture: user.profilePicture } });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to update profile' });
+    console.error('Profile update error:', err);
+    res.status(500).json({ error: 'Failed to update profile', details: err.message });
   }
 };
 

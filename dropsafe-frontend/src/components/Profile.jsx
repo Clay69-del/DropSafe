@@ -4,11 +4,24 @@ import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 
 
+// Dynamic backend URL for production or development
+const BACKEND_URL = 'http://localhost:5000';
+
+const getProfilePicUrl = (user, picOverride) => {
+  const pic = picOverride || user?.profilePicture;
+  if (pic) {
+    if (pic.startsWith('http')) return pic;
+    return `${BACKEND_URL}${pic}`;
+  }
+  if (user?.picture) return user.picture;
+  return "/default-profile.jpg";
+};
+
 const Profile = () => {
   const { user, setUser } = useContext(UserContext);
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState({ name: user?.name || '', email: user?.email || '' });
-  const [profilePic, setProfilePic] = useState(user?.profilePicture || '/default-profile.png');
+  const [profilePic, setProfilePic] = useState(getProfilePicUrl(user));
   const [picFile, setPicFile] = useState(null);
   const [passwords, setPasswords] = useState({ current: '', new: '' });
   const [msg, setMsg] = useState('');
@@ -26,17 +39,21 @@ const Profile = () => {
     e.preventDefault();
     setMsg(''); setErr('');
     try {
-      const res = await api.put('/api/users/me', form);
-      // Use the returned user object from backend
+      const res = await api.put('/users/me', form);
+      console.log('Profile update response:', res);
       if (res && res.user) {
         setUser({ ...user, ...res.user });
         localStorage.setItem('user', JSON.stringify({ ...user, ...res.user }));
-        setProfilePic(res.user.profilePicture || '/default-profile.png');
+        setProfilePic(getProfilePicUrl({ ...user, ...res.user }));
+        setMsg('Profile updated');
+        setErr('');
+        setEditMode(false);
+      } else {
+        setErr('Unexpected response from server');
       }
-      setMsg('Profile updated successfully!');
-      setEditMode(false);
     } catch (error) {
-      setErr(error.response?.data?.error || 'Could not update profile');
+      console.error('Profile update error:', error);
+      setErr(error.response?.data?.details || error.response?.data?.error || error.message || 'Could not update profile');
     }
   };
 
@@ -48,13 +65,13 @@ const Profile = () => {
     const data = new FormData();
     data.append('profilePicture', picFile);
     try {
-      const res = await api.post('/api/users/me/profile-picture', data, {
+      const res = await api.post('/users/me/profile-picture', data, {
         headers: {
           'Content-Type': 'multipart/form-data',
         }
       });
       if (res && res.profilePicture) {
-        setProfilePic(res.profilePicture);
+        setProfilePic(getProfilePicUrl(user, res.profilePicture));
         setUser({ ...user, profilePicture: res.profilePicture });
         localStorage.setItem('user', JSON.stringify({ ...user, profilePicture: res.profilePicture }));
       }
@@ -78,7 +95,7 @@ const Profile = () => {
       setMsg('Password changed successfully!');
       setPasswords({ current: '', new: '' });
     } catch (error) {
-      setErr(error.response?.data?.error || 'Could not change password');
+      setErr(error.response?.data?.details || 'Could not change password');
     }
   };
 
@@ -87,7 +104,7 @@ const Profile = () => {
       <div className="row mb-4">
         <div className="col-md-8 mx-auto text-center">
           <img
-            src={profilePic || '/default-profile.png'}
+            src={profilePic}
             alt="Profile"
             className="rounded-circle mb-3 shadow"
             width={100}

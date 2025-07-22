@@ -38,7 +38,7 @@ if (!fs.existsSync(UPLOAD_DIR)) {
 // AES Encryption Config
 const algorithm = 'aes-256-cbc';
 const secretKey = process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
-const iv = crypto.randomBytes(16);
+// Remove global iv
 
 // Helper function for consistent API responses
 const createResponse = (success, data = {}, message = '') => {
@@ -49,32 +49,19 @@ const createResponse = (success, data = {}, message = '') => {
   };
 };
 
-const encryptFile = (filePath, outputFilePath) => {
+// Update encryptFile to accept IV
+const encryptFile = (filePath, outputFilePath, iv) => {
   return new Promise((resolve, reject) => {
     try {
       const cipher = crypto.createCipheriv(algorithm, Buffer.from(secretKey, 'hex'), iv);
       const input = fs.createReadStream(filePath);
       const output = fs.createWriteStream(outputFilePath);
-      
       output.on('finish', () => resolve());
-      output.on('error', (err) => {
-        console.error('Output stream error:', err);
-        reject(err);
-      });
-      
-      input.on('error', (err) => {
-        console.error('Input stream error:', err);
-        reject(err);
-      });
-      
-      cipher.on('error', (err) => {
-        console.error('Cipher error:', err);
-        reject(err);
-      });
-      
+      output.on('error', (err) => reject(err));
+      input.on('error', (err) => reject(err));
+      cipher.on('error', (err) => reject(err));
       input.pipe(cipher).pipe(output);
     } catch (err) {
-      console.error('Encryption setup error:', err);
       reject(err);
     }
   });
@@ -136,13 +123,11 @@ const uploadFile = async (req, res) => {
     const encryptedFileName = `enc-${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
     const encryptedFilePath = path.join(UPLOAD_DIR, encryptedFileName);
 
-    // Ensure the upload directory exists
-    if (!fs.existsSync(UPLOAD_DIR)) {
-      fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-    }
+    // Generate a random IV for this file
+    const fileIv = crypto.randomBytes(16);
 
     // Encrypt the file and wait for completion
-    await encryptFile(file.path, encryptedFilePath);
+    await encryptFile(file.path, encryptedFilePath, fileIv);
     
     // Verify the encrypted file was created
     if (!fs.existsSync(encryptedFilePath)) {
@@ -175,7 +160,8 @@ const uploadFile = async (req, res) => {
       size: fileSizeMB,
       path: encryptedFilePath,
       encrypted: true,
-      uploaded: new Date()
+      uploaded: new Date(),
+      iv: fileIv.toString('hex')
     });
 
     // Return success response with file details
@@ -337,7 +323,9 @@ const viewFile = async (req, res) => {
     if (stats.size < 5 * 1024 * 1024) { // 5MB threshold
       try {
         const encryptedData = fs.readFileSync(filepath);
-        const decipher = crypto.createDecipheriv(algorithm, Buffer.from(secretKey, 'hex'), iv);
+        // Use the IV from the DB for decryption
+        const fileIv = Buffer.from(file.iv, 'hex');
+        const decipher = crypto.createDecipheriv(algorithm, Buffer.from(secretKey, 'hex'), fileIv);
         let decrypted = decipher.update(encryptedData);
         decrypted = Buffer.concat([decrypted, decipher.final()]);
         
@@ -351,7 +339,9 @@ const viewFile = async (req, res) => {
     } else {
       // Stream approach for larger files (better memory efficiency)
       try {
-        const decipher = crypto.createDecipheriv(algorithm, Buffer.from(secretKey, 'hex'), iv);
+        // Use the IV from the DB for decryption
+        const fileIv = Buffer.from(file.iv, 'hex');
+        const decipher = crypto.createDecipheriv(algorithm, Buffer.from(secretKey, 'hex'), fileIv);
         const input = fs.createReadStream(filepath);
         
         // Set content length for progress tracking

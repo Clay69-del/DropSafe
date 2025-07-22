@@ -49,6 +49,10 @@ export default (sequelize) => {
       allowNull: false,
       defaultValue: DataTypes.NOW,
     },
+    iv: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
   }, {
     tableName: 'files',
     timestamps: false,
