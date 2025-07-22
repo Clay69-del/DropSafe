@@ -140,7 +140,7 @@ const Dashboard = () => {
   const handlePreview = async (file) => {
     try {
       setSelectedFile(file);
-      if (file.mimeType?.startsWith('image/')) {
+      if (file.mimeType?.startsWith('image/') || file.mimeType === 'application/pdf') {
         const blob = await api.get(`/files/view/${file.id}`, {
           responseType: 'blob'
         });
@@ -546,6 +546,16 @@ const Dashboard = () => {
                     src={selectedFile.downloadUrl}
                     alt={selectedFile.name}
                     className="max-h-[70vh] max-w-full object-contain"
+                  />
+                </div>
+              ) : selectedFile.mimeType === 'application/pdf' && selectedFile.downloadUrl ? (
+                <div className="flex justify-center" style={{ height: '70vh' }}>
+                  <iframe
+                    src={selectedFile.downloadUrl}
+                    title={selectedFile.name}
+                    width="100%"
+                    height="100%"
+                    style={{ border: 'none', minHeight: '500px', maxHeight: '70vh' }}
                   />
                 </div>
               ) : (
