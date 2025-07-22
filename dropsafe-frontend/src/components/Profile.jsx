@@ -26,7 +26,7 @@ const Profile = () => {
     e.preventDefault();
     setMsg(''); setErr('');
     try {
-      const res = await api.put('/users/me', form);
+      const res = await api.put('/api/users/me', form);
       setUser({ ...user, ...form });
       localStorage.setItem('user', JSON.stringify({ ...user, ...form }));
       setMsg('Profile updated successfully!');
@@ -44,7 +44,7 @@ const Profile = () => {
     const data = new FormData();
     data.append('profilePicture', picFile);
     try {
-      const res = await api.post('/users/me/profile-picture', data, {
+      const res = await api.post('/api/users/me/profile-picture', data, {
         headers: {
           'Content-Type': 'multipart/form-data',
         }
