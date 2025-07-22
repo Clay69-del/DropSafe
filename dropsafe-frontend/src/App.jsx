@@ -12,7 +12,7 @@ import Login from './components/Login';
 import Register from './components/Register';
 import ResetPassword from './components/ResetPassword';
 import Dashboard from './components/Dashboard';
-import Upload from './components/Upload';
+import FileUpload from './components/Upload';
 import Profile from './components/Profile';
 const PrivateRoute = ({ children }) => {
   const { user, loading } = useContext(UserContext);
@@ -70,7 +70,7 @@ function App() {
             path="/upload"
             element={
               <PrivateRoute>
-                <Upload />
+                <FileUpload />
               </PrivateRoute>
             }
           />

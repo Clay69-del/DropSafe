@@ -20,7 +20,7 @@ import './Upload.css';
 // 50MB in bytes
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
-const Upload = () => {
+const FileUpload = () => {
   const [file, setFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -47,9 +47,16 @@ const Upload = () => {
   const fetchFiles = async () => {
     try {
       const response = await fileApi.getFiles();
-      setFiles(response.data.files || []);
+      if (response && Array.isArray(response.files)) {
+        setFiles(response.files);
+      } else if (Array.isArray(response)) {
+        setFiles(response);
+      } else {
+        setFiles([]);
+      }
     } catch (error) {
       console.error('Error fetching files:', error);
+      setFiles([]);
     }
   };
 
@@ -132,25 +139,17 @@ const Upload = () => {
     }
   };
 
-  const handleDownload = async (fileId, filename) => {
+  const handleDownload = async (file) => {
     try {
-      const response = await fileApi.viewFile(fileId);
-      
-      // Create a blob from the response
-      const blob = new Blob([response.data], { type: response.data.type });
+      const blob = await fileApi.viewFile(file.id);
       const url = window.URL.createObjectURL(blob);
-      
-      // Create and trigger a download link
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', filename);
+      link.setAttribute('download', file.name);
       document.body.appendChild(link);
       link.click();
-      
-      // Clean up
-      window.URL.revokeObjectURL(url);
       link.remove();
-      
+      window.URL.revokeObjectURL(url);
       toast.success('Download started');
     } catch (error) {
       console.error('Download failed:', error);
@@ -279,15 +278,14 @@ const Upload = () => {
               <div key={file.id} className="upload-item">
                 <div className="upload-item-info">
                   <FiFile className="upload-item-icon" />
-                  <span className="upload-item-name">{file.filename}</span>
+                  <span className="upload-item-name">{file.name}</span>
                 </div>
-                <a 
-                  href={`/api/files/download/${file.filename}`} 
+                <button 
+                  onClick={() => handleDownload(file)}
                   className="upload-item-download"
-                  download
                 >
                   <FiDownload size={16} /> Download
-                </a>
+                </button>
               </div>
             ))}
           </div>
@@ -297,4 +295,4 @@ const Upload = () => {
   );
 };
 
-export default Upload;
+export default FileUpload;
