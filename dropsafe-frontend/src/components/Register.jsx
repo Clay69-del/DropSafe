@@ -45,9 +45,7 @@ function Register() {
         email, 
         password 
       });
-      
-      // Log the user in after successful registration
-      const { user, token } = response;
+      const { user, token } = response.data;
       if (user && token) {
         login({ ...user, token });
         navigate('/dashboard');
